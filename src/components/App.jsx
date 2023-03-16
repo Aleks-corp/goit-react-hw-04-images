@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { fetchImageGallery } from './axios';
-import { PER_PAGE } from './constants';
+import { PER_PAGE, API_KEY } from './constants';
 import ImageGallery from './ImageGallery';
 import SearchBar from './SearchBar';
 import { Loader, LoaderForMoreImage } from './Loader';
@@ -21,16 +21,23 @@ export function App() {
   const [nextPage, setNextPage] = useState(null);
   const [totalPages, setTotalPages] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const sourceAbortToken = useRef(null);
 
   useEffect(() => {
-    sourceAbortToken.current = new AbortController();
-    console.log('sourceAbortMount', sourceAbortToken.current);
+    const controller = new AbortController();
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetchImageGallery(sourceAbortToken);
-        setImageGalleryList([...response.hits]);
+        const response = await axios.get('', {
+          params: {
+            key: API_KEY,
+            image_type: 'photo',
+            orientation: 'horizontal',
+            per_page: PER_PAGE,
+            page: 1,
+            signal: controller.signal,
+          },
+        });
+        setImageGalleryList([...response.data.hits]);
         setTotalPages(Math.ceil(Number(response.totalHits) / PER_PAGE));
         setNextPage(2);
       } catch (error) {
@@ -41,7 +48,8 @@ export function App() {
     };
     fetchData();
     return () => {
-      sourceAbortToken.current.abort();
+      controller.abort();
+      console.log('sourceAbortMount', controller);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -63,13 +71,10 @@ export function App() {
   const loadMoreImageHandler = async () => {
     try {
       setIsLoadMore(true);
-      sourceAbortToken.current.abort();
-      sourceAbortToken.current = new AbortController();
-      const response = await fetchImageGallery(
-        sourceAbortToken,
-        searchValue,
-        nextPage
-      );
+      // sourceAbortToken.current.abort();
+      // sourceAbortToken.current = new AbortController();
+      // console.log('sourceAbortMore', sourceAbortToken.current);
+      const response = await fetchImageGallery(searchValue, nextPage);
       galleryMountFilteredById(response.hits);
       //Добавление в state без проверки повторяющихся ID
       // this.setState({
@@ -91,14 +96,12 @@ export function App() {
         return;
       }
       setIsLoading(true);
-      sourceAbortToken.current.abort();
-      sourceAbortToken.current = new AbortController();
+      // sourceAbortToken.current.abort();
+      // sourceAbortToken.current = new AbortController();
+      // console.log('sourceAbortFinder', sourceAbortToken.current);
       setSearchValue(e.target[1].value.trim());
-      console.log('sourceAbortFinder', sourceAbortToken.current);
-      const response = await fetchImageGallery(
-        sourceAbortToken,
-        e.target[1].value.trim()
-      );
+
+      const response = await fetchImageGallery(e.target[1].value.trim());
       setImageGalleryList([...response.hits]);
       setTotalPages(Math.ceil(Number(response.totalHits) / PER_PAGE));
       setNextPage(2);

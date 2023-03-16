@@ -4,11 +4,7 @@ import { PER_PAGE, API_KEY } from './constants';
 
 axios.defaults.baseURL = 'https://pixabay.com/api/';
 
-export const fetchImageGallery = async (
-  controller,
-  searchValue = null,
-  page = 1
-) => {
+export const fetchImageGallery = async (searchValue = null, page = 1) => {
   const response = await axios.get('', {
     params: {
       key: API_KEY,
@@ -17,7 +13,6 @@ export const fetchImageGallery = async (
       orientation: 'horizontal',
       per_page: PER_PAGE,
       page: page,
-      signal: controller.signal,
     },
   });
 
