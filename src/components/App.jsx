@@ -25,7 +25,7 @@ export function App() {
 
   useEffect(() => {
     sourceAbortToken.current = new AbortController();
-    console.log('sourceAbortMount', sourceAbortToken.current.signal);
+    console.log('sourceAbortMount', sourceAbortToken.current);
     const fetchData = async () => {
       try {
         setIsLoading(true);
@@ -94,7 +94,7 @@ export function App() {
       sourceAbortToken.current.abort();
       sourceAbortToken.current = new AbortController();
       setSearchValue(e.target[1].value.trim());
-      console.log('sourceAbortFinder', sourceAbortToken.current.signal);
+      console.log('sourceAbortFinder', sourceAbortToken.current);
       const response = await fetchImageGallery(
         sourceAbortToken,
         e.target[1].value.trim()
