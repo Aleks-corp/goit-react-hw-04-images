@@ -24,9 +24,8 @@ export function App() {
   const sourceAbortToken = useRef(null);
 
   useEffect(() => {
-    console.log('mount');
     sourceAbortToken.current = new AbortController();
-    console.log('sourceAbortToken.current:', sourceAbortToken.current);
+    console.log('sourceAbortMount', sourceAbortToken.current.signal);
     const fetchData = async () => {
       try {
         setIsLoading(true);
@@ -42,7 +41,6 @@ export function App() {
     };
     fetchData();
     return () => {
-      console.log('unmount');
       sourceAbortToken.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,7 +94,7 @@ export function App() {
       sourceAbortToken.current.abort();
       sourceAbortToken.current = new AbortController();
       setSearchValue(e.target[1].value.trim());
-      console.log('sourceAbortToken.current:', sourceAbortToken.current);
+      console.log('sourceAbortFinder', sourceAbortToken.current.signal);
       const response = await fetchImageGallery(
         sourceAbortToken,
         e.target[1].value.trim()
