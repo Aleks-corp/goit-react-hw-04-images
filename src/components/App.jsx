@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useRef } from 'react';
+
 import { fetchImageGallery } from './axios';
 import { PER_PAGE } from './constants';
 import ImageGallery from './ImageGallery';
@@ -21,16 +21,16 @@ export function App() {
   const [nextPage, setNextPage] = useState(null);
   const [totalPages, setTotalPages] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const sourceAbortToken = useRef(null);
 
   useEffect(() => {
     console.log('mount');
-    const CancelToken = axios.CancelToken;
-    const source = CancelToken.source();
-
+    sourceAbortToken.current = new AbortController();
+    console.log('sourceAbortToken.current:', sourceAbortToken.current);
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetchImageGallery(source);
+        const response = await fetchImageGallery(sourceAbortToken);
         setImageGalleryList([...response.hits]);
         setTotalPages(Math.ceil(Number(response.totalHits) / PER_PAGE));
         setNextPage(2);
@@ -42,9 +42,10 @@ export function App() {
     };
     fetchData();
     return () => {
-      source.cancel();
       console.log('unmount');
+      sourceAbortToken.current.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function galleryMountFilteredById(newImageList) {
@@ -64,9 +65,13 @@ export function App() {
   const loadMoreImageHandler = async () => {
     try {
       setIsLoadMore(true);
-      const CancelToken = axios.CancelToken;
-      const source = CancelToken.source();
-      const response = await fetchImageGallery(source, searchValue, nextPage);
+      sourceAbortToken.current.abort();
+      sourceAbortToken.current = new AbortController();
+      const response = await fetchImageGallery(
+        sourceAbortToken,
+        searchValue,
+        nextPage
+      );
       galleryMountFilteredById(response.hits);
       //Добавление в state без проверки повторяющихся ID
       // this.setState({
@@ -81,8 +86,6 @@ export function App() {
   };
 
   const onSubmitForm = async e => {
-    const CancelToken = axios.CancelToken;
-    const source = CancelToken.source();
     try {
       e.preventDefault();
       if (searchValue === e.target[1].value.trim()) {
@@ -90,10 +93,12 @@ export function App() {
         return;
       }
       setIsLoading(true);
+      sourceAbortToken.current.abort();
+      sourceAbortToken.current = new AbortController();
       setSearchValue(e.target[1].value.trim());
-
+      console.log('sourceAbortToken.current:', sourceAbortToken.current);
       const response = await fetchImageGallery(
-        source,
+        sourceAbortToken,
         e.target[1].value.trim()
       );
       setImageGalleryList([...response.hits]);
