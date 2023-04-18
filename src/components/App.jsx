@@ -38,7 +38,7 @@ export function App() {
           },
         });
         setImageGalleryList([...response.data.hits]);
-        setTotalPages(Math.ceil(Number(response.totalHits) / PER_PAGE));
+        setTotalPages(Math.ceil(Number(response.data.totalHits) / PER_PAGE));
         setNextPage(2);
       } catch (error) {
         console.log('App ~ error', error);
