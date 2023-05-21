@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+
 import { fetchImageGallery } from './axios';
-import { PER_PAGE, API_KEY } from './constants';
+import { PER_PAGE } from './constants';
 import ImageGallery from './ImageGallery';
 import SearchBar from './SearchBar';
 import { Loader, LoaderForMoreImage } from './Loader';
 import Modal from './Modal';
 import ModalImage from './ModalImage';
 import Button from './Button';
+import ScrollButton from './ScrollButton';
 
 export function App() {
   const [imageGalleryList, setImageGalleryList] = useState([]);
@@ -17,31 +18,29 @@ export function App() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadMore, setIsLoadMore] = useState(false);
-  const [searchValue, setSearchValue] = useState(null);
-  const [nextPage, setNextPage] = useState(null);
-  const [totalPages, setTotalPages] = useState(null);
+  const [searchValue, setSearchValue] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState('');
 
+  //New search by VALUE
   useEffect(() => {
+    if (!searchValue) {
+      return;
+    }
     const controller = new AbortController();
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get('', {
-          params: {
-            key: API_KEY,
-            image_type: 'photo',
-            orientation: 'horizontal',
-            per_page: PER_PAGE,
-            page: 1,
-            signal: controller.signal,
-          },
-        });
-        setImageGalleryList([...response.data.hits]);
-        setTotalPages(Math.ceil(Number(response.data.totalHits) / PER_PAGE));
-        setNextPage(2);
+        setError('');
+        const response = await fetchImageGallery(searchValue);
+        setImageGalleryList([...response.hits]);
+        setTotalPages(Math.ceil(Number(response.totalHits) / PER_PAGE));
+        setPage(1);
       } catch (error) {
-        console.log('App ~ error', error);
+        console.log('App ~ error', error.message);
+        setError(error.message);
       } finally {
         setIsLoading(false);
       }
@@ -49,14 +48,43 @@ export function App() {
     fetchData();
     return () => {
       controller.abort();
-      console.log('sourceAbortMount', controller);
+    };
+  }, [searchValue]);
+
+  //New request for next page
+  useEffect(() => {
+    if (page === 1) {
+      return;
+    }
+    const controller = new AbortController();
+    const fetchData = async () => {
+      try {
+        setIsLoadMore(true);
+        setError('');
+        const response = await fetchImageGallery(searchValue, page);
+        //Search for duplicate images and their filter
+        galleryListFilteredById(response.hits);
+        //Add to state without checking repeated images by ID
+        // setImageGalleryList(
+        //    [...imageGalleryList, ...response.hits]
+        // );
+      } catch (error) {
+        console.log('App ~ error', error.message);
+        setError(error.message);
+      } finally {
+        setIsLoadMore(false);
+      }
+    };
+    fetchData();
+    return () => {
+      controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [page]);
 
-  function galleryMountFilteredById(newImageList) {
-    //Поиск повторяющихся картинок и их фильтр
-    //Чтобы не было проблем с повторяющимися ID
+  //Search for duplicate images and their filter
+  //So that there are no problems with duplicate IDs
+  function galleryListFilteredById(newImageList) {
     const imageList = [...imageGalleryList];
     const imageIdList = [];
     imageList.map(imageItm => imageIdList.push(imageItm.id));
@@ -64,55 +92,24 @@ export function App() {
       newImageItem =>
         !imageIdList.includes(newImageItem.id) && imageList.push(newImageItem)
     );
-    //Добавление в state после проверки и фильтра
+    //Adding to state after validation and filter
     setImageGalleryList(imageList);
   }
 
-  const loadMoreImageHandler = async () => {
-    try {
-      setIsLoadMore(true);
-      // sourceAbortToken.current.abort();
-      // sourceAbortToken.current = new AbortController();
-      // console.log('sourceAbortMore', sourceAbortToken.current);
-      const response = await fetchImageGallery(searchValue, nextPage);
-      galleryMountFilteredById(response.hits);
-      //Добавление в state без проверки повторяющихся ID
-      // this.setState({
-      //   imageGalleryList: [...this.state.imageGalleryList, ...response.hits],
-      // });
-      setNextPage(prevState => prevState + 1);
-    } catch (error) {
-      console.log('App ~ error', error);
-    } finally {
-      setIsLoadMore(false);
-    }
+  const loadMoreImageHandler = () => {
+    setPage(page + 1);
   };
 
-  const onSubmitForm = async e => {
-    try {
-      e.preventDefault();
-      if (searchValue === e.target[1].value.trim()) {
-        e.target[1].value = '';
-        return;
-      }
-      setIsLoading(true);
-      // sourceAbortToken.current.abort();
-      // sourceAbortToken.current = new AbortController();
-      // console.log('sourceAbortFinder', sourceAbortToken.current);
-      setSearchValue(e.target[1].value.trim());
-
-      const response = await fetchImageGallery(e.target[1].value.trim());
-      setImageGalleryList([...response.hits]);
-      setTotalPages(Math.ceil(Number(response.totalHits) / PER_PAGE));
-      setNextPage(2);
-
+  const onSubmitForm = e => {
+    e.preventDefault();
+    if (searchValue === e.target[1].value.trim()) {
       e.target[1].value = '';
-    } catch (error) {
-      console.log('App ~ error', error);
-    } finally {
-      setIsLoading(false);
+      return;
     }
+    setSearchValue(e.target[1].value.trim());
+    e.target[1].value = '';
   };
+
   const toggleModal = () => {
     setShowModal(!showModal);
   };
@@ -121,194 +118,57 @@ export function App() {
     const selectedImage = imageGalleryList.find(
       imageOption => imageOption.id === id
     );
-
     setShownImageInModalSrc(selectedImage.largeImageURL);
     setShownImageInModalAlt(selectedImage.tags);
-
     toggleModal();
   };
 
   return (
     <div className="App">
       <SearchBar onSubmit={onSubmitForm} />
-      {showModal && (
-        <Modal onClose={toggleModal}>
-          <ModalImage src={shownImageInModalSrc} alt={shownImageInModalAlt} />
-        </Modal>
-      )}
+
       {imageGalleryList.length > 0 && !isLoading && (
         <ImageGallery
           onClick={openImageInModal}
           imageGalleryList={imageGalleryList}
         />
       )}
+
       {isLoading && <Loader />}
-      {imageGalleryList.length === 0 && (
-        <p>Sorry, we din't find images, please try again</p>
+
+      {imageGalleryList.length === 0 && searchValue && !isLoading && (
+        <p
+          style={{
+            fontSize: 20,
+            fontWeight: 500,
+          }}
+        >
+          Sorry, we din't find any images for "{searchValue}" request, please
+          try again...
+        </p>
       )}
+
+      {error && <p className="Notification">{error}</p>}
+
       {isLoadMore ? (
         <LoaderForMoreImage />
       ) : (
-        nextPage <= totalPages &&
-        totalPages !== null &&
+        page < totalPages &&
+        totalPages !== 0 &&
         !isLoading && (
           <Button type="button" onClick={loadMoreImageHandler}>
             Load More...
           </Button>
         )
       )}
+
+      {showModal && (
+        <Modal onClose={toggleModal}>
+          <ModalImage src={shownImageInModalSrc} alt={shownImageInModalAlt} />
+        </Modal>
+      )}
+
+      <ScrollButton />
     </div>
   );
 }
-
-// export class App extends Component {
-//   state = {
-//     imageGalleryList: [],
-
-//     shownImageInModalSrc: '',
-//     shownImageInModalAlt: '',
-
-//     isLoading: false,
-//     isLoadMore: false,
-//     searchValue: null,
-//     nextPage: null,
-//     totalPages: null,
-//     showModal: false,
-//   };
-
-//   async componentDidMount() {
-//     try {
-//       this.setState({ isLoading: true });
-//       const response = await fetchImageGallery();
-//       this.setState({
-//         imageGalleryList: [...response.hits],
-//         totalPages: Math.ceil(Number(response.totalHits) / PER_PAGE),
-//         nextPage: 2,
-//       });
-//     } catch (error) {
-//       console.log('App ~ error', error);
-//     } finally {
-//       this.setState({ isLoading: false });
-//     }
-//   }
-
-//   galleryMountFilteredById(newImageList) {
-//     //Поиск повторяющихся картинок и их фильтр
-//     //Чтобы не было проблем с повторяющимися ID
-//     const imageList = [...this.state.imageGalleryList];
-//     const imageIdList = [];
-//     imageList.map(imageItm => imageIdList.push(imageItm.id));
-//     newImageList.map(
-//       newImageItem =>
-//         !imageIdList.includes(newImageItem.id) && imageList.push(newImageItem)
-//     );
-//     //Добавление в state после проверки и фильтра
-//     this.setState({ imageGalleryList: imageList });
-//   }
-
-//   loadMoreImageHandler = async () => {
-//     try {
-//       this.setState({ isLoadMore: true });
-//       const response = await fetchImageGallery(
-//         this.state.searchValue,
-//         this.state.nextPage
-//       );
-//       this.galleryMountFilteredById(response.hits);
-//       //Добавление в state без проверки повторяющихся ID
-//       // this.setState({
-//       //   imageGalleryList: [...this.state.imageGalleryList, ...response.hits],
-//       // });
-//       this.setState(prevState => ({ nextPage: prevState.nextPage + 1 }));
-//     } catch (error) {
-//       console.log('App ~ error', error);
-//     } finally {
-//       this.setState({ isLoadMore: false });
-//     }
-//   };
-
-//   onSubmitForm = async e => {
-//     try {
-//       e.preventDefault();
-//       if (this.state.searchValue === e.target[1].value.trim()) {
-//         e.target[1].value = '';
-//         return;
-//       }
-//       this.setState({ isLoading: true });
-
-//       this.setState({ searchValue: e.target[1].value.trim() });
-
-//       const response = await fetchImageGallery(e.target[1].value.trim());
-//       this.setState({
-//         imageGalleryList: [...response.hits],
-//         totalPages: Math.ceil(Number(response.totalHits) / PER_PAGE),
-//         nextPage: 2,
-//       });
-//       e.target[1].value = '';
-//     } catch (error) {
-//       console.log('App ~ error', error);
-//     } finally {
-//       this.setState({ isLoading: false });
-//     }
-//   };
-//   toggleModal = () => {
-//     this.setState(({ showModal }) => ({
-//       showModal: !showModal,
-//     }));
-//   };
-//   openImageInModal = id => {
-//     const selectedImage = this.state.imageGalleryList.find(
-//       imageOption => imageOption.id === id
-//     );
-
-//     this.setState({
-//       shownImageInModalSrc: selectedImage.largeImageURL,
-//       shownImageInModalAlt: selectedImage.tags,
-//     });
-
-//     this.toggleModal();
-//   };
-
-//   render() {
-//     const {
-//       imageGalleryList,
-//       nextPage,
-//       totalPages,
-//       isLoading,
-//       isLoadMore,
-//       showModal,
-//       shownImageInModalAlt,
-//       shownImageInModalSrc,
-//     } = this.state;
-//     return (
-//       <div className="App">
-//         <SearchBar onSubmit={this.onSubmitForm} />
-//         {showModal && (
-//           <Modal onClose={this.toggleModal}>
-//             <ModalImage src={shownImageInModalSrc} alt={shownImageInModalAlt} />
-//           </Modal>
-//         )}
-//         {imageGalleryList.length > 0 && !isLoading && (
-//           <ImageGallery
-//             onClick={this.openImageInModal}
-//             imageGalleryList={imageGalleryList}
-//           />
-//         )}
-//         {isLoading && <Loader />}
-//         {imageGalleryList.length === 0 && (
-//           <p>Sorry, we din't find images, please try again</p>
-//         )}
-//         {isLoadMore ? (
-//           <LoaderForMoreImage />
-//         ) : (
-//           nextPage <= totalPages &&
-//           totalPages !== null &&
-//           !isLoading && (
-//             <Button type="button" onClick={this.loadMoreImageHandler}>
-//               Load More...
-//             </Button>
-//           )
-//         )}
-//       </div>
-//     );
-//   }
-// }

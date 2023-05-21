@@ -1,16 +1,17 @@
 import React from 'react';
 import { BiSearch } from 'react-icons/bi';
-import './SearchBar.css';
+import styles from './SearchBar.module.css';
+import PropTypes from 'prop-types';
 
 const SearchBar = ({ onSubmit }) => (
-  <header className="Searchbar">
-    <form className="SearchForm" onSubmit={e => onSubmit(e)}>
-      <button type="submit" className="SearchForm-button">
-        <BiSearch className="SearchForm-icon" />
+  <header className={styles.Searchbar}>
+    <form className={styles.SearchForm} onSubmit={e => onSubmit(e)}>
+      <button type="submit" className={styles.SearchFormButton}>
+        <BiSearch className={styles.SearchFormIcon} />
       </button>
 
       <input
-        className="SearchForm-input"
+        className={styles.SearchFormInput}
         type="text"
         autoComplete="off"
         autoFocus
@@ -21,3 +22,7 @@ const SearchBar = ({ onSubmit }) => (
 );
 
 export default SearchBar;
+
+SearchBar.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
+};

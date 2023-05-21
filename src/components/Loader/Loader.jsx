@@ -1,9 +1,9 @@
 import React from 'react';
 import { Oval, ProgressBar } from 'react-loader-spinner';
-import './Loader.css';
+import styles from './Loader.module.css';
 
 export const Loader = () => (
-  <div className="Loader">
+  <div className={styles.Loader}>
     <Oval
       height={80}
       width={80}
@@ -19,7 +19,7 @@ export const Loader = () => (
   </div>
 );
 export const LoaderForMoreImage = () => (
-  <div className="Loader">
+  <div className={styles.Loader}>
     <ProgressBar
       height="80"
       width="80"
